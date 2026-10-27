@@ -7,6 +7,7 @@ locals {
     ManagedBy   = "IaC"
     Course      = "UCU-Cloud"
     Lab         = "v2"
+    CostCenter  = "lab-ucu"
   }
 
   user_data = templatefile("${path.module}/../shared/web.sh.tftpl", {
