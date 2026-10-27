@@ -1,0 +1,61 @@
+name: iac-cloud
+
+on:
+  pull_request:
+    branches: [main]          # PR  -> plan
+  push:
+    branches: [main]          # main -> apply + smoke test
+  workflow_dispatch:          # manual -> plan | apply | destroy
+    inputs:
+      action:
+        description: "Acción a ejecutar"
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iac-cloud            # nunca dos ejecuciones sobre el mismo state
+  cancel-in-progress: false
+
+env:
+  TF_DIR: aws                 # CAMBIAR: aws | azure | gcp
+  # Credenciales: cargar como secrets SOLO las de tu nube
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+jobs:
+  iac:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_version: "1.12.6"    # verificar la versión estable vigente
+          tofu_wrapper: false
+
+      - name: Elegir acción según el evento
+        id: act
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_ACTION: ${{ inputs.action }}
+        run: |
+          case "$EVENT" in
+            workflow_dispatch) ACTION="$INPUT_ACTION" ;;
+            push)              ACTION="apply" ;;
+            *)                 ACTION="plan" ;;
+          esac
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "Acción: **$ACTION** en \`$TF_DIR\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: IaC
+        run: ./scripts/tf.sh "${{ steps.act.outputs.action }}"

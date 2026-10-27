@@ -1,0 +1,27 @@
+#!/bin/bash
+# Script de arranque (cloud-init): instala nginx y publica una página de prueba.
+set -eux
+
+if command -v dnf >/dev/null 2>&1; then
+  dnf install -y nginx              # Amazon Linux 2023
+  HTML_DIR=/usr/share/nginx/html
+else
+  apt-get update -y
+  apt-get install -y nginx          # Ubuntu / Debian
+  HTML_DIR=/var/www/html
+fi
+
+cat > "$HTML_DIR/index.html" <<'HTML'
+<!doctype html>
+<html lang="es">
+  <head><meta charset="utf-8"><title>Lab IaC v2</title></head>
+  <body style="font-family: Arial, sans-serif; margin: 3rem;">
+    <h1>${mensaje}</h1>
+    <p>Entorno: ${environment} · Nube: ${cloud}</p>
+    <p>Almacenamiento: ${bucket} · Owner: ${owner}</p>
+  </body>
+</html>
+HTML
+
+systemctl enable nginx
+systemctl restart nginx

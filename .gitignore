@@ -1,0 +1,13 @@
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+
+# Credenciales: NUNCA al repositorio
+*.json
+*.pem
+.env
+
+# .terraform.lock.hcl SÍ se versiona

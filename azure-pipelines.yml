@@ -1,0 +1,53 @@
+# Equivalente en Azure DevOps. Secretos en el variable group "lab-iac-cloud".
+trigger:
+  branches:
+    include: [main]           # main -> apply + smoke test
+
+pr:
+  branches:
+    include: [main]           # PR -> plan
+
+parameters:
+  - name: action              # ejecución manual -> plan | apply | destroy
+    displayName: Acción manual
+    type: string
+    default: plan
+    values: [plan, apply, destroy]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: lab-iac-cloud
+  - name: TF_DIR
+    value: aws                # CAMBIAR: aws | azure | gcp
+  - name: TOFU_VERSION
+    value: "1.12.6"
+
+steps:
+  - checkout: self
+
+  - bash: ./scripts/install-tofu.sh "$(TOFU_VERSION)"
+    displayName: Instalar OpenTofu desde binario
+
+  - bash: |
+      ACTION="${{ parameters.action }}"
+      case "$(Build.Reason)" in
+        IndividualCI|BatchedCI) ACTION="apply" ;;
+        PullRequest)            ACTION="plan" ;;
+      esac
+      echo "Acción: $ACTION en $TF_DIR"
+      ./scripts/tf.sh "$ACTION"
+    displayName: IaC
+    # En Azure DevOps los secretos NO llegan solos al script: se mapean en env.
+    # Dejar SOLO las líneas de tu nube.
+    env:
+      TF_DIR: $(TF_DIR)
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+      AWS_SESSION_TOKEN: $(AWS_SESSION_TOKEN)
+      # ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+      # ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+      # ARM_TENANT_ID: $(ARM_TENANT_ID)
+      # ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+      # GOOGLE_CREDENTIALS: $(GOOGLE_CREDENTIALS)
